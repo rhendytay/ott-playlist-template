@@ -1,0 +1,48 @@
+name: Update Playlist
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # jalan tiap 6 jam
+  workflow_dispatch: # bisa dijalankan manual
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Generate filtered playlist
+        env:
+          SOURCE_URL: https://bit.ly/KITKATTV
+          BLOCK_KEYWORDS: RCTI,MNCTV,GTV,iNews
+          OUTPUT_FILE: iptv_channel.m3u
+        run: python update_playlist.py
+
+      - name: Commit & Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          # Commit only if there are changes
+          if ! git diff --cached --quiet; then
+            git commit -m "auto: update playlist"
+            # Push to the current branch (default branch on schedule is 'main')
+            CURRENT_BRANCH="${GITHUB_REF##*/}"
+            git push origin "HEAD:${CURRENT_BRANCH}"
+          else
+            echo "No changes to commit"
+          fi
